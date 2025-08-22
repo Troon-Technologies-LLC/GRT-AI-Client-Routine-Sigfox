@@ -23,7 +23,7 @@ class EmailReporter {
       process.env.REPORT_EMAIL
     ];
     
-    this.transporter = nodemailer.createTransporter(this.emailConfig);
+    this.transporter = nodemailer.createTransport(this.emailConfig);
   }
 
   // Start hourly email reporting
@@ -198,11 +198,19 @@ class EmailReporter {
   // Test email configuration
   async testEmailConnection() {
     try {
+      // Skip email verification if credentials are not provided
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.log('⚠️ Email credentials not configured - email reporting disabled');
+        return false;
+      }
+      
       await this.transporter.verify();
       console.log('✅ Email configuration is valid');
       return true;
     } catch (error) {
       console.error('❌ Email configuration error:', error.message);
+      console.log('💡 For Gmail: You need an App Password, not your regular password');
+      console.log('💡 Visit: https://support.google.com/accounts/answer/185833');
       return false;
     }
   }

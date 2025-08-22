@@ -20,13 +20,18 @@ test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
   // Initialize email reporter
   const emailReporter = new EmailReporter();
   
-  // Test email configuration
-  const emailValid = await emailReporter.testEmailConnection();
-  if (emailValid) {
-    console.log('✅ Email reporting system initialized');
-    emailReporter.startHourlyReporting();
-  } else {
-    console.log('⚠️ Email reporting disabled - check configuration');
+  // Test email configuration (non-blocking)
+  let emailValid = false;
+  try {
+    emailValid = await emailReporter.testEmailConnection();
+    if (emailValid) {
+      console.log('✅ Email reporting system initialized');
+      emailReporter.startHourlyReporting();
+    } else {
+      console.log('⚠️ Email reporting disabled - continuing without emails');
+    }
+  } catch (error) {
+    console.log('⚠️ Email system error - continuing without emails:', error.message);
   }
 
   let testCount = 0;
@@ -47,23 +52,27 @@ test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
       console.error('❌ Error in test cycle:', error.message);
       console.log('🔄 Continuing in 30 seconds...');
       
-      // Log error to email reporter
-      if (emailReporter) {
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const today = new Date().getDay();
-        const dayName = days[today];
-        
-        emailReporter.logTestResult({
-          testCycle: testCount,
-          dayName: dayName,
-          currentTime: new Date().toLocaleTimeString(),
-          location: 'Unknown',
-          device: 'Unknown',
-          timeSlot: 'Error occurred',
-          status: 'error',
-          responseStatus: 'N/A',
-          error: error.message
-        });
+      // Log error to email reporter (only if email is working)
+      if (emailReporter && emailValid) {
+        try {
+          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const today = new Date().getDay();
+          const dayName = days[today];
+          
+          emailReporter.logTestResult({
+            testCycle: testCount,
+            dayName: dayName,
+            currentTime: new Date().toLocaleTimeString(),
+            location: 'Unknown',
+            device: 'Unknown',
+            timeSlot: 'Error occurred',
+            status: 'error',
+            responseStatus: 'N/A',
+            error: error.message
+          });
+        } catch (emailError) {
+          // Silently ignore email logging errors
+        }
       }
       
       await new Promise(resolve => setTimeout(resolve, 30000));
@@ -88,19 +97,23 @@ async function runCurrentScheduleTest(page, testCount, emailReporter) {
   if (!currentSlot) {
     console.log('⏰ No active time slot found for current time');
     
-    // Log "no active slot" to email reporter
-    if (emailReporter) {
-      emailReporter.logTestResult({
-        testCycle: testCount,
-        dayName: dayName,
-        currentTime: new Date().toLocaleTimeString(),
-        location: 'N/A',
-        device: 'N/A',
-        timeSlot: 'No active time slot',
-        status: 'success',
-        responseStatus: 'Skipped',
-        error: null
-      });
+    // Log "no active slot" to email reporter (only if email is working)
+    if (emailReporter && emailValid) {
+      try {
+        emailReporter.logTestResult({
+          testCycle: testCount,
+          dayName: dayName,
+          currentTime: new Date().toLocaleTimeString(),
+          location: 'N/A',
+          device: 'N/A',
+          timeSlot: 'No active time slot',
+          status: 'success',
+          responseStatus: 'Skipped',
+          error: null
+        });
+      } catch (emailError) {
+        // Silently ignore email logging errors
+      }
     }
     return;
   }
@@ -167,19 +180,23 @@ async function runCurrentScheduleTest(page, testCount, emailReporter) {
         testStatus = 'error';
         responseStatus = 'Unknown Location';
         
-        // Log unknown location error
-        if (emailReporter) {
-          emailReporter.logTestResult({
-            testCycle: testCount,
-            dayName: dayName,
-            currentTime: timeStr,
-            location: currentSlot.location,
-            device: currentSlot.device,
-            timeSlot: `${currentSlot.startTime} - ${currentSlot.endTime}`,
-            status: 'error',
-            responseStatus: 'Unknown Location',
-            error: `Unknown location: ${currentSlot.location}`
-          });
+        // Log unknown location error (only if email is working)
+        if (emailReporter && emailValid) {
+          try {
+            emailReporter.logTestResult({
+              testCycle: testCount,
+              dayName: dayName,
+              currentTime: timeStr,
+              location: currentSlot.location,
+              device: currentSlot.device,
+              timeSlot: `${currentSlot.startTime} - ${currentSlot.endTime}`,
+              status: 'error',
+              responseStatus: 'Unknown Location',
+              error: `Unknown location: ${currentSlot.location}`
+            });
+          } catch (emailError) {
+            // Silently ignore email logging errors
+          }
         }
         return;
     }
@@ -192,18 +209,22 @@ async function runCurrentScheduleTest(page, testCount, emailReporter) {
     responseStatus = 'Error';
   }
   
-  // Log successful test result to email reporter
-  if (emailReporter) {
-    emailReporter.logTestResult({
-      testCycle: testCount,
-      dayName: dayName,
-      currentTime: timeStr,
-      location: currentSlot.location,
-      device: currentSlot.device,
-      timeSlot: `${currentSlot.startTime} - ${currentSlot.endTime}`,
-      status: testStatus,
-      responseStatus: responseStatus,
-      error: testStatus === 'error' ? 'API call failed' : null
-    });
+  // Log test result to email reporter (only if email is working)
+  if (emailReporter && emailValid) {
+    try {
+      emailReporter.logTestResult({
+        testCycle: testCount,
+        dayName: dayName,
+        currentTime: timeStr,
+        location: currentSlot.location,
+        device: currentSlot.device,
+        timeSlot: `${currentSlot.startTime} - ${currentSlot.endTime}`,
+        status: testStatus,
+        responseStatus: responseStatus,
+        error: testStatus === 'error' ? 'API call failed' : null
+      });
+    } catch (emailError) {
+      // Silently ignore email logging errors
+    }
   }
 }
