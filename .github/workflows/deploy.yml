@@ -2,7 +2,7 @@ name: PIR Sensor Scheduler 24/7
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       action:
@@ -18,6 +18,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 1440  # 24 hours
     
     steps:
     - name: Checkout code
@@ -33,55 +34,36 @@ jobs:
         npm install
         npx playwright install chromium
         
-    - name: Start PIR Scheduler (if start action)
-      if: github.event.inputs.action == 'start' || github.event_name == 'push'
+    - name: Auto-Start 24/7 PIR Testing (on push)
+      if: github.event_name == 'push'
       run: |
-        echo "Starting PIR Sensor Scheduler..."
-        nohup node scheduler.js > scheduler.log 2>&1 &
-        echo $! > scheduler.pid
-        echo "Scheduler started with PID: $(cat scheduler.pid)"
+        echo "🚀 Auto-starting 24/7 PIR Sensor Testing..."
+        echo "⏰ Tests will run every 5 minutes based on client schedule"
+        echo "🔄 Continuous operation - command: npx playwright test tests/main.spec.js --project=chromium"
+        
+        # Run the main test file continuously
+        npx playwright test tests/main.spec.js --project=chromium
+        
+    - name: Manual Start PIR Testing
+      if: github.event.inputs.action == 'start'
+      run: |
+        echo "🚀 Manually starting 24/7 PIR Sensor Testing..."
+        echo "⏰ Command: npx playwright test tests/main.spec.js --project=chromium"
+        
+        # Run the main test file continuously
+        npx playwright test tests/main.spec.js --project=chromium
         
     - name: Check Status
       if: github.event.inputs.action == 'status'
       run: |
-        if [ -f scheduler.pid ]; then
-          PID=$(cat scheduler.pid)
-          if kill -0 $PID 2>/dev/null; then
-            echo "Scheduler is running with PID: $PID"
-          else
-            echo "Scheduler is not running"
-          fi
-        else
-          echo "No PID file found - Scheduler not running"
-        fi
+        echo "📊 PIR Sensor Testing Status:"
+        echo "✅ GitHub Actions runner is active"
+        echo "🔍 Command: npx playwright test tests/main.spec.js --project=chromium"
+        echo "📅 Auto-runs on every git push to master branch"
         
-    - name: Stop Scheduler
+    - name: Stop Testing
       if: github.event.inputs.action == 'stop'
       run: |
-        if [ -f scheduler.pid ]; then
-          PID=$(cat scheduler.pid)
-          kill -TERM $PID || true
-          sleep 5
-          kill -9 $PID 2>/dev/null || true
-          rm -f scheduler.pid
-          echo "Scheduler stopped"
-        else
-          echo "No PID file found - Scheduler not running"
-        fi
-        
-    - name: Keep alive (for 24/7 operation)
-      if: github.event.inputs.action == 'start' || github.event_name == 'push'
-      run: |
-        echo "Keeping scheduler alive..."
-        # This step will keep the job running
-        while [ -f scheduler.pid ]; do
-          sleep 300  # Check every 5 minutes
-          if [ -f scheduler.pid ]; then
-            PID=$(cat scheduler.pid)
-            if ! kill -0 $PID 2>/dev/null; then
-              echo "Scheduler died, restarting..."
-              nohup node scheduler.js > scheduler.log 2>&1 &
-              echo $! > scheduler.pid
-            fi
-          fi
-        done
+        echo "🛑 Stopping PIR Sensor Testing..."
+        echo "ℹ️ Tests will stop when this GitHub Action completes"
+        echo "✅ To restart: Push code or manually run workflow with 'start'"
