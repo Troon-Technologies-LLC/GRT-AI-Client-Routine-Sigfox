@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { test } = require('@playwright/test');
 const CharliPirBasement = require('../Fixtures/CharliPirBasement');
 const CharliPirKitchen = require('../Fixtures/CharliPirKitchen');
@@ -42,7 +43,7 @@ test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
       testCount++;
       console.log(`\n🔄 Test Cycle #${testCount} - ${new Date().toLocaleString()}`);
       
-      await runCurrentScheduleTest(page, testCount, emailReporter);
+      await runCurrentScheduleTest(page, testCount, emailReporter, emailValid);
       
       // Wait 5 minutes before next test
       console.log('⏳ Waiting 5 minutes until next test...\n');
@@ -81,7 +82,7 @@ test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
 });
 
 // Function to run the current schedule test
-async function runCurrentScheduleTest(page, testCount, emailReporter) {
+async function runCurrentScheduleTest(page, testCount, emailReporter, emailValid) {
   // Get current day and load schedule
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const today = new Date().getDay();
