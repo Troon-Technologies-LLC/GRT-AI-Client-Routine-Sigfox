@@ -7,3 +7,6 @@ test-results/
 scheduler.pid
 scheduler.log
 logs/
+
+# Environment variables (contains sensitive credentials)
+.env
