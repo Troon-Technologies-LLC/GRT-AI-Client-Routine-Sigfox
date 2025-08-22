@@ -33,8 +33,8 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  /* Global timeout for all tests - 24 hours for continuous operation */
-  timeout: 24 * 60 * 60 * 1000,
+  /* Global timeout for all tests - 0 means no timeout (infinite) */
+  timeout: 0,
 
   /* Configure projects for major browsers */
   projects: [
@@ -46,7 +46,7 @@ export default defineConfig({
         actionTimeout: 60000, // 1 minute per action
         navigationTimeout: 60000, // 1 minute for navigation
       },
-      timeout: 24 * 60 * 60 * 1000, // 24 hours for continuous operation
+      timeout: 0, // No timeout - runs indefinitely
     },
 
     {

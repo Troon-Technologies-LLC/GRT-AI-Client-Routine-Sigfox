@@ -9,8 +9,8 @@ const ScheduleReader = require('../TestData/schedule_reader');
 
 // 24/7 Continuous PIR Sensor Testing
 test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
-  // Set test timeout to 24 hours (for continuous operation)
-  test.setTimeout(24 * 60 * 60 * 1000);
+  // Set test timeout to 0 (infinite - no timeout)
+  test.setTimeout(0);
   console.log('🚀 Starting 24/7 PIR Sensor Testing...');
   console.log('⏰ Tests will run every 5 minutes based on client schedule');
   console.log('🛑 Press Ctrl+C to stop\n');
