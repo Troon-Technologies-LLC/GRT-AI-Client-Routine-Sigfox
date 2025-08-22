@@ -12,7 +12,7 @@ const EmailReporter = require('../TestData/email_reporter');
 test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
   // Set test timeout to 0 (infinite - no timeout)
   test.setTimeout(0);
-  console.log('🚀 Starting 24/7 PIR Sensor Testing...');
+  console.log('🚀 Starting 24/7 PIR Sensor Testing....');
   console.log('⏰ Tests will run every 5 minutes based on client schedule');
   console.log('📧 Hourly email reports will be sent automatically');
   console.log('🛑 Press Ctrl+C to stop\n');
