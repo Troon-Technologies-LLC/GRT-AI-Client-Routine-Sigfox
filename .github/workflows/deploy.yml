@@ -1,0 +1,87 @@
+name: PIR Sensor Scheduler 24/7
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'start'
+        type: choice
+        options:
+        - start
+        - stop
+        - status
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        npm install
+        npx playwright install chromium
+        
+    - name: Start PIR Scheduler (if start action)
+      if: github.event.inputs.action == 'start' || github.event_name == 'push'
+      run: |
+        echo "Starting PIR Sensor Scheduler..."
+        nohup node scheduler.js > scheduler.log 2>&1 &
+        echo $! > scheduler.pid
+        echo "Scheduler started with PID: $(cat scheduler.pid)"
+        
+    - name: Check Status
+      if: github.event.inputs.action == 'status'
+      run: |
+        if [ -f scheduler.pid ]; then
+          PID=$(cat scheduler.pid)
+          if kill -0 $PID 2>/dev/null; then
+            echo "Scheduler is running with PID: $PID"
+          else
+            echo "Scheduler is not running"
+          fi
+        else
+          echo "No PID file found - Scheduler not running"
+        fi
+        
+    - name: Stop Scheduler
+      if: github.event.inputs.action == 'stop'
+      run: |
+        if [ -f scheduler.pid ]; then
+          PID=$(cat scheduler.pid)
+          kill -TERM $PID || true
+          sleep 5
+          kill -9 $PID 2>/dev/null || true
+          rm -f scheduler.pid
+          echo "Scheduler stopped"
+        else
+          echo "No PID file found - Scheduler not running"
+        fi
+        
+    - name: Keep alive (for 24/7 operation)
+      if: github.event.inputs.action == 'start' || github.event_name == 'push'
+      run: |
+        echo "Keeping scheduler alive..."
+        # This step will keep the job running
+        while [ -f scheduler.pid ]; do
+          sleep 300  # Check every 5 minutes
+          if [ -f scheduler.pid ]; then
+            PID=$(cat scheduler.pid)
+            if ! kill -0 $PID 2>/dev/null; then
+              echo "Scheduler died, restarting..."
+              nohup node scheduler.js > scheduler.log 2>&1 &
+              echo $! > scheduler.pid
+            fi
+          fi
+        done
