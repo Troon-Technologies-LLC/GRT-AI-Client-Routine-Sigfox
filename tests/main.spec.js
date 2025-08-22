@@ -7,8 +7,38 @@ const CharliPirRoom = require('../Fixtures/CharliPirRoom');
 const CharliPirWashRoom = require('../Fixtures/CharliPirWashRoom');
 const ScheduleReader = require('../TestData/schedule_reader');
 
-// Dynamic test that runs based on current time and client location
-test('Dynamic PIR Sensor Test - Based on Client Schedule', async ({ page }) => {
+// 24/7 Continuous PIR Sensor Testing
+test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
+  // Set test timeout to 24 hours (for continuous operation)
+  test.setTimeout(24 * 60 * 60 * 1000);
+  console.log('🚀 Starting 24/7 PIR Sensor Testing...');
+  console.log('⏰ Tests will run every 5 minutes based on client schedule');
+  console.log('🛑 Press Ctrl+C to stop\n');
+
+  let testCount = 0;
+  
+  // Continuous loop - runs until manually stopped
+  while (true) {
+    try {
+      testCount++;
+      console.log(`\n🔄 Test Cycle #${testCount} - ${new Date().toLocaleString()}`);
+      
+      await runCurrentScheduleTest(page);
+      
+      // Wait 5 minutes before next test
+      console.log('⏳ Waiting 5 minutes until next test...\n');
+      await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000));
+      
+    } catch (error) {
+      console.error('❌ Error in test cycle:', error.message);
+      console.log('🔄 Continuing in 30 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 30000));
+    }
+  }
+});
+
+// Function to run the current schedule test
+async function runCurrentScheduleTest(page) {
   // Get current day and load schedule
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const today = new Date().getDay();
@@ -79,4 +109,4 @@ test('Dynamic PIR Sensor Test - Based on Client Schedule', async ({ page }) => {
   }
   
   console.log(`🎯 PIR ${currentSlot.location} sensor test completed successfully`);
-});
+}

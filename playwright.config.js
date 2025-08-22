@@ -33,11 +33,20 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
+  /* Global timeout for all tests - 24 hours for continuous operation */
+  timeout: 24 * 60 * 60 * 1000,
+
   /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Increase timeout for 24/7 continuous tests
+        actionTimeout: 60000, // 1 minute per action
+        navigationTimeout: 60000, // 1 minute for navigation
+      },
+      timeout: 24 * 60 * 60 * 1000, // 24 hours for continuous operation
     },
 
     {
