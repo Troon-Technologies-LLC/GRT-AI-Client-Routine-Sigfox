@@ -34,15 +34,15 @@ class CharliPirOffice {
     return response;
   }
 
-  // Get sensor information
-  getSensorInfo() {
-    return this.sensorData;
-  }
+  // // Get sensor information
+  // getSensorInfo() {
+  //   return this.sensorData;
+  // }
 
-  // Update sensor status
-  updateStatus(newStatus) {
-    this.sensorData.status = newStatus;
-  }
+  // // Update sensor status
+  // updateStatus(newStatus) {
+  //   this.sensorData.status = newStatus;
+  // }
 }
 
 module.exports = CharliPirOffice;

@@ -1,7 +1,40 @@
 const fs = require('fs');
 const path = require('path');
 
+// Resolve TIME_ZONE from environment. If not set, use system local time.
+function resolveTimeZone(tzEnv) {
+  if (!tzEnv) return null; // null => system local timezone
+
+  const tz = tzEnv.trim();
+
+  // Support numeric offsets like "-4", "+3", "UTC-4", "UTC+5"
+  const m = tz.match(/^UTC?\s*([+-]\d{1,2})$/i) || tz.match(/^([+-]\d{1,2})$/);
+  if (m) {
+    const offset = parseInt(m[1], 10);
+    // Map to IANA fixed-offset zones (note the inverted sign semantics)
+    // UTC-4 (Toronto summer) => Etc/GMT+4
+    // UTC+3 => Etc/GMT-3
+    const sign = offset >= 0 ? '-' : '+';
+    const abs = Math.abs(offset);
+    return `Etc/GMT${sign}${abs}`;
+  }
+
+  // Otherwise assume it's a valid IANA timezone like 'America/Toronto'
+  return tz;
+}
+
+const RESOLVED_TZ = resolveTimeZone(process.env.TIME_ZONE);
+
 class ScheduleReader {
+  // Return current time in configured timezone (or system local) as HH:MM (24h)
+  static currentTimeInTZ() {
+    const options = { hour: '2-digit', minute: '2-digit', hour12: false };
+    const fmt = new Intl.DateTimeFormat('en-CA', RESOLVED_TZ ? { ...options, timeZone: RESOLVED_TZ } : options);
+    const parts = fmt.formatToParts(new Date());
+    const hh = parts.find(p => p.type === 'hour')?.value || '00';
+    const mm = parts.find(p => p.type === 'minute')?.value || '00';
+    return `${hh}:${mm}`;
+  }
   static readDailySchedule(csvFileName) {
     try {
       const csvPath = path.join(__dirname, csvFileName);
@@ -41,9 +74,7 @@ class ScheduleReader {
   }
 
   static getCurrentTimeSlot(schedule) {
-    const now = new Date();
-    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + 
-                       now.getMinutes().toString().padStart(2, '0');
+    const currentTime = this.currentTimeInTZ();
     
     for (const slot of schedule) {
       if (this.isTimeInRange(currentTime, slot.startTime, slot.endTime)) {
@@ -96,9 +127,7 @@ class ScheduleReader {
   }
 
   static getNextScheduleChange(schedule) {
-    const now = new Date();
-    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + 
-                       now.getMinutes().toString().padStart(2, '0');
+    const currentTime = this.currentTimeInTZ();
     
     // Find the next time slot change
     for (const slot of schedule) {

@@ -9,6 +9,43 @@ const CharliPirWashRoom = require('../Fixtures/CharliPirWashRoom');
 const ScheduleReader = require('../TestData/schedule_reader');
 const EmailReporter = require('../TestData/email_reporter');
 
+// Resolve TIME_ZONE from environment. Supports IANA (e.g., America/Toronto) or numeric offsets (e.g., "-4").
+function resolveTimeZone(tzEnv) {
+  if (!tzEnv) return null; // null => system local timezone
+  const tz = tzEnv.trim();
+  const m = tz.match(/^UTC?\s*([+-]\d{1,2})$/i) || tz.match(/^([+-]\d{1,2})$/);
+  if (m) {
+    const offset = parseInt(m[1], 10);
+    const sign = offset >= 0 ? '-' : '+'; // Etc/GMT has inverted sign
+    const abs = Math.abs(offset);
+    return `Etc/GMT${sign}${abs}`;
+  }
+  return tz; // assume IANA
+}
+
+const RESOLVED_TZ = resolveTimeZone(process.env.TIME_ZONE);
+
+function timeStringInTZ(date = new Date()) {
+  const options = { hour: '2-digit', minute: '2-digit', hour12: false };
+  const fmt = new Intl.DateTimeFormat('en-CA', RESOLVED_TZ ? { ...options, timeZone: RESOLVED_TZ } : options);
+  const parts = fmt.formatToParts(date);
+  const hh = parts.find(p => p.type === 'hour')?.value || '00';
+  const mm = parts.find(p => p.type === 'minute')?.value || '00';
+  return `${hh}:${mm}`;
+}
+
+function dateTimeStringInTZ(date = new Date()) {
+  const options = { dateStyle: 'medium', timeStyle: 'medium' };
+  const fmt = new Intl.DateTimeFormat('en-CA', RESOLVED_TZ ? { ...options, timeZone: RESOLVED_TZ } : options);
+  return fmt.format(date);
+}
+
+function dayNameInTZ(date = new Date()) {
+  const options = { weekday: 'long' };
+  const fmt = new Intl.DateTimeFormat('en-CA', RESOLVED_TZ ? { ...options, timeZone: RESOLVED_TZ } : options);
+  return fmt.format(date); // e.g., "Saturday"
+}
+
 // 24/7 Continuous PIR Sensor Testing
 test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
   // Set test timeout to 0 (infinite - no timeout)
@@ -41,7 +78,7 @@ test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
   while (true) {
     try {
       testCount++;
-      console.log(`\n🔄 Test Cycle #${testCount} - ${new Date().toLocaleString()}`);
+      console.log(`\n🔄 Test Cycle #${testCount} - ${dateTimeStringInTZ(new Date())}`);
       
       await runCurrentScheduleTest(page, testCount, emailReporter, emailValid);
       
@@ -56,14 +93,12 @@ test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
       // Log error to email reporter (only if email is working)
       if (emailReporter && emailValid) {
         try {
-          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          const today = new Date().getDay();
-          const dayName = days[today];
+          const dayName = dayNameInTZ(new Date());
           
           emailReporter.logTestResult({
             testCycle: testCount,
             dayName: dayName,
-            currentTime: new Date().toLocaleTimeString(),
+            currentTime: timeStringInTZ(new Date()),
             location: 'Unknown',
             device: 'Unknown',
             timeSlot: 'Error occurred',
@@ -84,9 +119,7 @@ test('24/7 PIR Sensor Testing - Continuous Operation', async ({ page }) => {
 // Function to run the current schedule test
 async function runCurrentScheduleTest(page, testCount, emailReporter, emailValid) {
   // Get current day and load schedule
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const today = new Date().getDay();
-  const dayName = days[today];
+  const dayName = dayNameInTZ(new Date());
   const csvFileName = `${dayName}.csv`;
   
   console.log(`📅 Testing for: ${dayName}`);
@@ -96,20 +129,24 @@ async function runCurrentScheduleTest(page, testCount, emailReporter, emailValid
   const currentSlot = ScheduleReader.getCurrentTimeSlot(schedule);
   
   if (!currentSlot) {
-    console.log('⏰ No active time slot found for current time');
+    console.log('🏠 Charli is away from home - No active time slot found');
+    console.log('📊 Test Status: RUNNING (monitoring continues)');
+    console.log(`📈 Test Cycle #${testCount} completed - System operational`);
+    console.log('🔄 Tests will continue running every 5 minutes');
+    console.log('📧 Away status logged for reporting');
     
-    // Log "no active slot" to email reporter (only if email is working)
+    // Log "away from home" status to email reporter (only if email is working)
     if (emailReporter && emailValid) {
       try {
         emailReporter.logTestResult({
           testCycle: testCount,
           dayName: dayName,
-          currentTime: new Date().toLocaleTimeString(),
-          location: 'N/A',
-          device: 'N/A',
-          timeSlot: 'No active time slot',
-          status: 'success',
-          responseStatus: 'Skipped',
+          currentTime: timeStringInTZ(new Date()),
+          location: 'Away from Home',
+          device: 'N/A - Monitoring Only',
+          timeSlot: 'No active schedule',
+          status: 'away',
+          responseStatus: 'Monitoring Active',
           error: null
         });
       } catch (emailError) {
@@ -120,7 +157,7 @@ async function runCurrentScheduleTest(page, testCount, emailReporter, emailValid
   }
   
   const now = new Date();
-  const timeStr = now.toLocaleTimeString();
+  const timeStr = timeStringInTZ(now);
   
   console.log(`🕐 Current Time: ${timeStr}`);
   console.log(`📍 Client Location: ${currentSlot.location}`);

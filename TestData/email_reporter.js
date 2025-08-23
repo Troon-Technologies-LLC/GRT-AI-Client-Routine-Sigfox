@@ -2,6 +2,40 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 
+// Resolve TIME_ZONE from environment to an IANA zone or use system local if not set
+function resolveTimeZone(tzEnv) {
+  if (!tzEnv) return null; // system local timezone
+  const tz = tzEnv.trim();
+  const m = tz.match(/^UTC?\s*([+-]\d{1,2})$/i) || tz.match(/^([+-]\d{1,2})$/);
+  if (m) {
+    const offset = parseInt(m[1], 10);
+    const sign = offset >= 0 ? '-' : '+'; // Etc/GMT sign inversion
+    const abs = Math.abs(offset);
+    return `Etc/GMT${sign}${abs}`;
+  }
+  return tz; // assume IANA
+}
+
+const RESOLVED_TZ = resolveTimeZone(process.env.TIME_ZONE);
+
+function fmtDate(date = new Date()) {
+  const opts = { dateStyle: 'medium', timeStyle: 'medium' };
+  const fmt = new Intl.DateTimeFormat('en-CA', RESOLVED_TZ ? { ...opts, timeZone: RESOLVED_TZ } : opts);
+  return fmt.format(date);
+}
+
+function fmtTime(date = new Date()) {
+  const opts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  const fmt = new Intl.DateTimeFormat('en-CA', RESOLVED_TZ ? { ...opts, timeZone: RESOLVED_TZ } : opts);
+  return fmt.format(date);
+}
+
+function fmtDateOnly(date = new Date()) {
+  const opts = { year: 'numeric', month: '2-digit', day: '2-digit' };
+  const fmt = new Intl.DateTimeFormat('en-CA', RESOLVED_TZ ? { ...opts, timeZone: RESOLVED_TZ } : opts);
+  return fmt.format(date);
+}
+
 class EmailReporter {
   constructor() {
     this.testResults = [];
@@ -82,10 +116,11 @@ class EmailReporter {
   // Generate HTML email report
   generateEmailReport(results) {
     const now = new Date();
-    const reportPeriod = `${this.lastReportTime.toLocaleString()} - ${now.toLocaleString()}`;
+    const reportPeriod = `${fmtDate(this.lastReportTime)} - ${fmtDate(now)}`;
     
     const totalTests = results.length;
     const successfulTests = results.filter(r => r.status === 'success').length;
+    const awayTests = results.filter(r => r.status === 'away').length;
     const failedTests = results.filter(r => r.status === 'error').length;
     const successRate = totalTests > 0 ? ((successfulTests / totalTests) * 100).toFixed(1) : 0;
 
@@ -109,12 +144,14 @@ class EmailReporter {
         <div class="header">
             <h2>🔍 PIR Sensor Testing - Hourly Report</h2>
             <p>Report Period: ${reportPeriod}</p>
+            <p>Timezone: ${process.env.TIME_ZONE ? process.env.TIME_ZONE : 'System Local'}</p>
         </div>
         
         <div class="summary">
             <h3>📊 Summary</h3>
             <p><strong>Total Tests:</strong> ${totalTests}</p>
             <p><strong>Successful:</strong> <span class="success">${successfulTests}</span></p>
+            <p><strong>Away from Home:</strong> <span class="no-test">${awayTests}</span></p>
             <p><strong>Failed:</strong> <span class="error">${failedTests}</span></p>
             <p><strong>Success Rate:</strong> ${successRate}%</p>
         </div>`;
@@ -135,12 +172,22 @@ class EmailReporter {
             </tr>`;
 
       results.forEach(result => {
-        const statusClass = result.status === 'success' ? 'success' : 'error';
-        const statusText = result.status === 'success' ? '✅ Success' : '❌ Failed';
+        let statusClass, statusText;
+        
+        if (result.status === 'success') {
+          statusClass = 'success';
+          statusText = '✅ Success';
+        } else if (result.status === 'away') {
+          statusClass = 'no-test';
+          statusText = '🏠 Away from Home';
+        } else {
+          statusClass = 'error';
+          statusText = '❌ Failed';
+        }
         
         html += `
             <tr>
-                <td>${result.timestamp.toLocaleTimeString()}</td>
+                <td>${fmtTime(result.timestamp)}</td>
                 <td>${result.testCycle}</td>
                 <td>${result.dayName}</td>
                 <td>${result.location || 'N/A'}</td>
@@ -159,7 +206,7 @@ class EmailReporter {
     html += `
         <div style="margin-top: 20px; padding: 10px; background-color: #e3f2fd; border-radius: 5px;">
             <p><strong>🤖 PIR Sensor Scheduler Status:</strong> Running 24/7</p>
-            <p><strong>⏰ Next Report:</strong> ${new Date(Date.now() + 60 * 60 * 1000).toLocaleString()}</p>
+            <p><strong>⏰ Next Report:</strong> ${fmtDate(new Date(Date.now() + 60 * 60 * 1000))}</p>
         </div>
     </body>
     </html>`;
@@ -174,7 +221,7 @@ class EmailReporter {
       const htmlContent = this.generateEmailReport(results);
       
       const now = new Date();
-      const subject = `PIR Sensor Report - ${now.toLocaleDateString()} ${now.getHours()}:00`;
+      const subject = `PIR Sensor Report - ${fmtDateOnly(now)} ${new Intl.DateTimeFormat('en-CA', RESOLVED_TZ ? { hour: '2-digit', hour12: false, timeZone: RESOLVED_TZ } : { hour: '2-digit', hour12: false }).format(now)}:00`;
 
       const mailOptions = {
         from: process.env.EMAIL_USER,

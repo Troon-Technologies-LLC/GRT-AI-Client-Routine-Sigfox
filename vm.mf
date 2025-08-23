@@ -1,0 +1,14 @@
+Useful commands/actions
+Stop just the tests (keep VM running):
+
+
+pm2 stop pir24x7
+pm2 delete pir24x7
+
+
+
+
+Start tests again:
+bash
+pm2 start "npx playwright test tests/main.spec.js --project=chromium --workers=1" --name pir24x7
+pm2 save
