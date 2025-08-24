@@ -1,5 +1,8 @@
 # PIR Sensor Scheduler - 24/7 Automation
 
+npx playwright test tests/main.spec.js --project=chromium
+
+
 Automated PIR sensor testing system that runs 24/7 based on client's weekly routine schedule.
 
 ## 🚀 Quick Start

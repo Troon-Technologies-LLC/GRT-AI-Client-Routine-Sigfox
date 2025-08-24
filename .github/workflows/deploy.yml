@@ -18,7 +18,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 1440  # 24 hours
+    timeout-minutes: 10  # 10 minutes for deployment
     
     steps:
     - name: Checkout code
@@ -46,12 +46,10 @@ jobs:
     - name: Auto-Start 24/7 PIR Testing (on push)
       if: github.event_name == 'push'
       run: |
-        echo "🚀 Auto-starting 24/7 PIR Sensor Testing..."
-        echo "⏰ Tests will run every 5 minutes based on client schedule"
-        echo "🔄 Continuous operation - command: npx playwright test tests/main.spec.js --project=chromium"
-        
-        # Run the main test file continuously
-        npx playwright test tests/main.spec.js --project=chromium
+        echo "🚀 Code deployed successfully!"
+        echo "⏰ To start 24/7 testing: Run workflow manually with 'start'"
+        echo "🔄 Command: npx playwright test tests/main.spec.js --project=chromium"
+        echo "✅ Deployment complete - no auto-start to prevent infinite loop"
         
     - name: Manual Start PIR Testing
       if: github.event.inputs.action == 'start'
